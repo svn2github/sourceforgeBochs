@@ -1,0 +1,436 @@
+Readme for BRANCH-cpanel branch
+updated Mon Mar 18 15:56:58  2002
+Bryce Denney
+
+-------------
+April 8: This code now has all the changes from the main branch up to
+the latest release 1.4.  It is very close to being ready to merge with
+the main branch.
+
+TO DO:
+- with --with-wx and debugger, control-C in the terminal window kills the
+  process instead of just interrupting the simulation.  This needs to be
+  fixed eventually.
+-------------
+
+wxWindows Configuration Interface
+
+This branch began in June 2001 when the most recent bochs version was 1.2.1.
+Dave Poirier and Bryce Denney started adding a wxWindows configuration
+interface.  Since then, Bryce merged in all the changes made between 1.2.1 and
+1.4.pre2, so it is very current now.  At present, it uses the platform's native
+interface to show the vga screen and the traditional bitmap buttons.  The
+wxWindows window is a separate window, and eventually it will let you choose
+between different configurations, manage all the bochsrc options, create new
+disk images (?), and then start a simulation.
+
+The wxWindows window appears first.  This will be where you can choose a preset
+configuration or create one from scratch, then edit the bochsrc options using
+the GUI.  Then, by clicking on Simulate:Start, you can start up the Bochs
+simulation.  For now, the simulation creates its own window for vga display and
+the traditional buttons, which still use the platform-dependent gui code (not
+wxwindows).  However, Psyon's screen shot shows that he's very close to having
+a wxwindows vga display too.
+
+WARNING: Don't expect stable or complete code yet!
+
+I have tested in linux, where a "configure --with-wx;make" should work fine.
+More recently, I have been developing in MSVC++ using projects and 
+workspaces.  To build in VC++:
+
+- in cygwin, do "sh .conf.win32-vcpp".  If you want different configure
+  options from the default, edit .conf.win32-vcpp first.
+- in cygwin, do "unzip build/win32/workspace.zip", or use winzip.  Now
+  you should have bochs.dsw and bochs.dsp in the main directory.
+- open up bochs.dsw, the workspace file.
+- edit project settings so that VC++ can find the wxWindows include
+  files and libraries on your system.  I installed them in
+  d:/wx/wx232/include and d:/wx/wx232/lib.  Specifically, edit
+  - Project>Settings>C/C++>Preprocessor: include directories.
+  - Project>Settings>Link>Input: additional library path.
+- build
+
+Note that the project is set up for wxWindows 2.3.2, and the only 
+configuration that I've used is called Win32 Debug.  To use on 
+other wxwindows versions, you will have to change some of the names
+of the libraries to include.  Use the samples that came with that
+version of wxwindows for reference.
+
+What works right now:
+- cd to a directory with a bochsrc and disk images in it (I use dlxlinux)
+- start up bochs.  You get a small wxwindows window with a File menu.
+- choose "Start" on the Simulate menu.
+- a new window pops up with is the normal bochs window.  Bochs starts running.
+  You can pause it, resume it, or kill it on the Simulate menu.
+- the only visible change is that I've made several of the toolbar
+  icons bring up wxwindows dialog boxes.  There is a lot going on behind
+  the scenes to make this possible--trust me!  The 2 floppy icons, CDROM
+  icon, and snapshot icon all bring up appropriate dialog boxes to let
+  you choose a file.
+- That's all.  The other menu options are not implemented except for quit.
+
+To do:
+- sketch the GUI pieces that need to be made, with text description of
+  basically what they should do.  See README.gui-sketch for latest ideas.
+- have a few people look over the sketches so that we don't waste lots of
+  time building dialogs that people will hate.
+- code some dialog boxes in wxwindows.  Just get it looking right at first, and
+  Bryce can help you to get it connected to the simulator using the event
+  infrastructure that he has made.  Again, after one or two is done there will
+  be some good examples to look at.
+- implement gui_to_sim_event() which allows the GUI to initiate events
+  in the simulator thread.  Currently all events are the opposite direction.
+  This will probably look like a queue of BxEvent structures, with 
+  thread-safe put() and get() methods.
+- implement ASK_PARAM gui event for all types of parameters.  Currently only
+  string params are supported, meaning that when you call ask_param() on
+  a string parameter, the GUI gives the user a chance to edit that parameter's
+  value.  We will need to implement boolean, enum, numerical parameters, and
+  lists.  Lists should probably be displayed as a table or a dialog box
+  with several things to select.
+- wxwindows vga screen.  Psyon has made a great start on this, so I want
+  to get his code integrated ASAP.  I'm sure it will need some tweaking
+  to fix up mouse support, key mapping, colors, screen sizes, etc.
+- debugger interface.  There's lots of demand for a debugger interface
+  to Bochs: possibly more demand than for a configuration interface.  We
+  should talk about what this will look like, and when we have a plan we
+  can start sketching and coding dialogs for the debugger interface too.
+- clean up the biggest memory leaks and init/cleanup code.  The gui allows you
+  to kill the simulator and restart, but it doesn't do well after the first
+  time.
+------------------------------------------------------
+
+Random notes follow
+
+Added some sketches in README.gui-sketch.  I'm thinking that the control
+panel will be able to basically show one of these screens at a time.  When
+you first start you would see ChooseConfigScreen which chooses between the
+configurations that you have loaded recently (which it would remember
+by the pathname of their bochsrc).  Whether you choose an existing 
+configuration to be loaded or a new one, when you click Ok you go to
+the first configuration screen, ConfigDiskScreen.
+
+Each of the configuration screens takes up the whole control panel window.
+We could use tabs on the top and/or "<-Prev" and "Next->" buttons to make
+it quick to navigate the configuration screens.  Each screen should
+probably have a Prev, Next, Revert to Saved, and Accept button.
+The menu choices like Disk..., VGA..., etc. just switch directly to
+that tab.
+
+
+------------------------------------------------------
+Notes:
+
+events from gui to sim:
+- [async] key pressed or released
+- [async] mouse motion with button state
+- [sync] query parameter
+- [sync] change parameter
+- [async] start, pause, stop, reset simulation.  Can be implemented
+  as changing a parameter.
+- [async] request notification when some param changes
+
+events from sim to gui:
+- [async] log message to be displayed (or not)
+- [async] ask user how to proceed (like panic: action=ask)
+- [async] param value changed
+- make my thread sleep for X microseconds  (call wxThread::sleep then return)
+
+In a synchronous event, the event object will contain space for the entire
+response.  The sender allocates memory for the event and builds it.  The
+receiver fills in blanks in the event structure (or could overwrite parts)
+and returns the same event pointer as a response.  For async events, probably
+the sender will allocate and the receiver will have to delete it.
+
+implement the floppyA and floppyB change buttons using new event
+structure.  How should it work?
+
+vga gui detects a click on floppyA bitmap
+construct a BxEvent type BX_EVT_ASK_PARAM
+post the event to the wxwindows gui thread (somehow) and block for response
+when it arrives in the gui thread, show a modal dialog box
+get the answer back to the simulator thread
+
+
+right now, this is working ok within the simulator thread using
+wxMutexGuiEnter/Leave.  Still I'm going to change it so that the
+siminterface.cc code builds an event structure and the gui code
+fills in the blank in the structure, instead of the stupid 
+notify_get_int_arg stuff.
+
+
+Starting and Killing Threads
+
+When a detachable (default) thread finishes (returns from its Entry()
+function), wxwindows frees the memory associated with that thread.  
+Unless the thread is never going to end, it is potentially dangerous to have a
+pointer to it at all.  Even if you try to "check if it's alive" first, you may
+be dereferencing the pointer after it has already been deleted, leading to it
+claiming to be alive when it's not, or a segfault.  To solve this, the approach
+used in the wxwindows threads example is to have code in the thread's OnExit()
+method remove the thread's pointer from the list of usable threads.  In
+addition, any references or changes to the list of threads is controlled by a
+critical section to ensure that it stays correct.  This post finally 
+explained what I was seeing.
+
++-----------------------
+| From: Pieter van der Meulen (pgmvdm@yahoo.com)
+|  Subject: Re: Thread Sample program - bug 
+|  Newsgroups: comp.soft-sys.wxwindows
+|  Date: 2001-06-28 17:51:35 PST 
+| 
+| 
+| At 06:24 PM 6/28/2001, you wrote:
+| >Hi,
+| >I have wxWindows 2.2.7 (wxMSW) installed.
+| >
+| >I just found in the thread.cpp sample code this section:
+| >
+| ><code>
+| >void MyFrame::OnQuit(wxCommandEvent& WXUNUSED(event) )
+| >{
+| >     size_t count = wxGetApp().m_threads.Count();
+| >     for ( size_t i = 0; i < count; i++ )
+| >     {
+| >===>        wxGetApp().m_threads[0]->Delete();    <=====
+| >     }
+| >
+| >     Close(TRUE);
+| >}
+| ></code>
+| >The indecated line should probably rather have a
+| >m_threads[i]     rather than     m_threads[0] .
+| 
+| No, it should not, although it is not immediately obvious. When Delete() is 
+| called, the thread will eventually delete itself, but not before it calls 
+| MyThread::Exit(), which will remove itself from m_threads[] using 
+| wxArray::Remove(this). wxArray::Remove (RemoveAt) will compact the array to 
+| remove the element, it is now size-1. After this wxThread::Delete() returns.
+| 
+| 
+| >I have have a further question to this:
+| >Does this mean that a detached thread created with new
+| >HAS to be deleted  manually ?  Or is this only in case it might still
+| >be running?
+| 
+| Firstly, you must create every detached thread using new since it will 
+| delete itself, literally calling delete this.
+| Calling wxThread::Delete() is a correct way to terminate a thread, but 
+| manually deleting (using delete) a detached wxThread object is not. 
+| wxThread::Delete() will ask the thread to exit, the thread should check for 
+| this in wxThread::Entry() regularly using wxThread::TestDestroy() and exit 
+| when asked to do so.
+| 
+| >(In general I have a unsatisfied felling about when delete is
+| >neccessary and when not -- "I only know, it's not , if the class is
+| >derived from wxWindows")
+| 
+| For wxThreads: joinable threads must be deleted (when allocated on the 
+| heap), detached threads may never be deleted. For other classes, consult 
+| the documentation ;)
+| 
+| 
+| >Thanks for some feedback,
+| >Sebastian
+| 
+| Regards,
+| 
+| Pieter.
++-----------------------
+
+
+
+-------------
+tracking some kind of deadlock bug in Linux.
+seems to be in ReadMailcap, src/unix/mimetypes.cpp in wxwindows sources
+src/unix/mimetype.cpp:2312
+
+from line 2571
+if ( lhs.Contains (wxT("test")))
+    {
+    if ( ! rhs.IsEmpty() )
+	{
+	if ( wxSystem(rhs) == 0 ) {
+	    // ok, test passed
+	    test_passed = TRUE;
+	    wxLogTrace(TRACE_MIME,
+		       wxT("Test '%s' for mime type '%s' succeeded."),
+		       rhs.c_str(), strType.c_str());
+
+    }
+    else {
+	    test_passed = FALSE;
+	    wxLogTrace(TRACE_MIME,
+		       wxT("Test '%s' for mime type '%s' failed."),
+		       rhs.c_str(), strType.c_str());
+	}
+    }
+    verbfound = FALSE;
+    }
+
+it's calling wxSystem (rhs) where rhs= {m_pchData = 0x81e7cec "test %{encapsulation}=entity", 
+  static npos = 4294967195}
+
+0x407418b8 in system (line=0x81e7cec "test %{encapsulation}=entity")
+    at wrapsyscall.c:120
+
+pthread_setcanceltype (type=1, oldtype=0xbfffef64) at internals.h:339
+339     internals.h: No such file or directory.
+        in internals.h
+40      cancel.c: No such file or directory.
+        in cancel.c
+__libc_system (line=0x81e7cec "test %{encapsulation}=entity")
+    at ../sysdeps/posix/system.c:46
+55      in ../sysdeps/posix/system.c
+__sigaction (sig=2, act=0xbfffeebc, oact=0xbfffee30)
+    at ../sysdeps/unix/sysv/linux/i386/sigaction.c:58
+58      ../sysdeps/unix/sysv/linux/i386/sigaction.c: No such file or directory.
+        in ../sysdeps/unix/sysv/linux/i386/sigaction.c
+__errno_location () at internals.h:339
+__sigaction (sig=2, act=0xbfffeebc, oact=0xbfffee30)
+    at ../sysdeps/unix/sysv/linux/i386/sigaction.c:63
+63      ../sysdeps/unix/sysv/linux/i386/sigaction.c: No such file or directory.
+        in ../sysdeps/unix/sysv/linux/i386/sigaction.c
+__libc_system (line=0x81e7cec "test %{encapsulation}=entity")
+    at ../sysdeps/posix/system.c:57
+57      ../sysdeps/posix/system.c: No such file or directory.
+        in ../sysdeps/posix/system.c
+118     ../sysdeps/unix/sysv/linux/bits/sigset.h: No such file or directory.
+        in ../sysdeps/unix/sysv/linux/bits/sigset.h
+__errno_location () at internals.h:339
+339     internals.h: No such file or directory.
+        in internals.h
+__libc_system (line=0x81e7cec "test %{encapsulation}=entity")
+    at ../sysdeps/posix/system.c:75
+75      ../sysdeps/posix/system.c: No such file or directory.
+        in ../sysdeps/posix/system.c
+__sigprocmask (how=0, set=0xbfffed24, oset=0xbfffeca4)
+    at ../sysdeps/unix/sysv/linux/sigprocmask.c:44
+44      ../sysdeps/unix/sysv/linux/sigprocmask.c: No such file or directory.
+        in ../sysdeps/unix/sysv/linux/sigprocmask.c
+__libc_waitpid (pid=29099, stat_loc=0xbfffec90, options=0)
+    at ../sysdeps/unix/sysv/linux/waitpid.c:26
+26      ../sysdeps/unix/sysv/linux/waitpid.c: No such file or directory.
+        in ../sysdeps/unix/sysv/linux/waitpid.c
+pthread_setcanceltype (type=0, oldtype=0x0) at internals.h:339
+339     internals.h: No such file or directory.
+        in internals.h
+
+this one returned after I stepped for a long time.
+
+
+Ok this is bizarre.
+I turned off the SIGINT handler so that I could get back into gdb after
+a problem occurs.  Also I added wxLog::AddTraceMask (_T("mime"));
+to MyApp::OnInit() so that I'd see more details as it's parsing the
+mailcap.
+
+diff -u -r1.58.2.9 main.cc
+--- main.cc     18 Mar 2002 20:03:51 -0000      1.58.2.9
++++ main.cc     19 Mar 2002 15:20:58 -0000
+@@ -1134,7 +1134,8 @@
+ // if not using debugger, then we can take control of SIGINT.
+//  // If using debugger, it needs control of this.
+//   #if BX_DEBUGGER==0
+//   -  signal(SIGINT, bx_signal_handler);
+//   +  // disable signal handler so that gdb can get it
+//   +  //signal(SIGINT, bx_signal_handler);
+//    #endif
+//     
+//      #if BX_SHOW_IPS
+
+Now what happens is that when I try to create that file-open dialog,
+it runs to a certain point and stops forever
+[Trace] 10:05:21: (mime) --- Parsing mailcap file '/etc/mailcap' ---
+[Trace] 10:05:21: (mime) In Add to Mime data 'audio/mod' with 1 entries and 0 exts ---
+[Trace] 10:05:21: (mime) In Add to Mime data 'image/*' with 1 entries and 0 exts ---
+[Trace] 10:05:21: (mime) In Add to Mime data 'video/*' with 1 entries and 0 exts ---
+[Trace] 10:05:21: (mime) In Add to Mime data 'video/mpeg' with 1 entries and 0 exts ---
+
+Then, if I press Control C to get into debugger, and then continue, it
+continues through the ReadMailcap and successfully shows the dialog.
+
+
+
+
+-------------------------------------------------------------
+Bochs x86 Pentium Emulator
+Updated: Wed Mar 27 20:02:41  2002
+Version: 1.4
+
+WHAT IS BOCHS?
+
+Bochs is a highly portable open source IA-32 (x86) PC emulator
+written in C++, that runs on most popular platforms.  It includes
+emulation of the Intel x86 CPU, common I/O devices, and a custom
+BIOS.  Currently, bochs can be compiled to emulate a 386, 486 or
+Pentium CPU.  Bochs is capable of running most Operating Systems
+inside the emulation including Linux, Windows 95, DOS, and 
+Windows NT 4.  Bochs was written by Kevin Lawton and is currently 
+maintained by the Bochs project at "http://bochs.sourceforge.net".
+
+Bochs can be compiled and used in a variety of modes, some which are
+still in development.  The 'typical' use of bochs is to provide
+complete x86 PC emulation, including the x86 processor, hardware
+devices, and memory.  This allows you to run OS's and software within
+the emulator on your workstation, much like you have a machine
+inside of a machine.  Bochs will allow you to run Win '95
+applications on a Solaris machine with X11, for example.
+
+Bochs is distributed under the GNU LGPL.  See COPYING for details.
+
+GETTING CURRENT SOURCE CODE 
+
+Source code for Bochs is available from the Bochs home page at
+http://bochs.sourceforge.net.  You can download the most recent
+release, use CVS to get the latest sources, or grab a CVS
+snapshot which is updated nightly.  The releases contain the most
+stable code, but if you want the very newest features try the
+CVS version instead. 
+
+WHERE ARE THE DOCS?
+
+The Bochs documentation has been overhauled, and it is now
+distributed in a separate package called bochsdoc-VERSION.tar.gz.
+A copy is also online at 
+  http://bochs.sf.net/doc/docbook/alldocs.html
+For now, the old documentation can still be found at
+  http://bochs.sf.net/docs-html
+
+WHERE CAN I GET MORE INFORMATION?  HOW DO I REPORT PROBLEMS?
+
+Both the documentation and the Bochs website have instructions on how 
+to join the bochs-developers mailing list, which is the primary
+forum for discussion of Bochs.  The main page of the website also
+has links to bug reports and feature requests.  You can browse and
+add to the content in these areas even if you do not have a (free)
+SourceForge account.  We need your feedback so that we know what
+parts of Bochs to improve.  
+
+There is a patches section on the web site too, if you have made
+some changes to Bochs that you want to share.
+
+HOW CAN I HELP?
+
+If you would like contribute to the Bochs project, a good first step
+is to join the bochs-developers mailing list, and read the archive
+of recent messages to see what's going on.  
+
+If you are a technical person (can follow hardware specs, can write
+C/C++) take a look at the list of open bug reports and feature
+requests to see if you are interested in working on any of the
+problems that are mentioned in them.  If you check out the CVS
+sources, make some changes, and create a patch, one of the
+developers will be very happy to apply it for you.  Developers who
+frequently submit patches, or who embark on major changes in the
+source can get write access to CVS.  Be sure to communicate with the
+bochs-developers list to avoid several people working on the same
+thing without realizing it.
+
+If you are a Bochs user, not a hardware/C++ guru, there are still
+many ways you could help out.  For example:
+  - improving win32 binary releases
+  - building up a set of useful tools to include in those releases
+  - writing/cleaning up documentation
+  - testing out Bochs on every imaginable operating system and 
+    reporting how it goes.
