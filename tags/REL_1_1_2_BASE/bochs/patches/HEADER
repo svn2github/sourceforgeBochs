@@ -1,0 +1,13 @@
+----------------------------------------------------------------------
+Patch name:
+Author:
+Date:
+
+Detailed description:
+
+Apply patch to:
+  Bochs 1.1.2 (bugfix3)
+Instructions:
+  To patch, go to main bochs directory.
+  Type "patch -p0 < THIS_PATCH_FILE".
+----------------------------------------------------------------------
