@@ -1,0 +1,14 @@
+SMP Bochs To Do List
+- work on timers
+  - if you care that TSC is identical in each processor, you should be able to
+      while(true) {
+        run one instruction in each CPU
+	tick++
+      }
+  - otherwise run each one a certain amount (called quantum in cosim mode)
+    and then increment ticks by the required amount.  But check that the
+    ticks are really programmed right.
+  - check if #define BX_MEM(x) (bx_mem_array[x]) is the right thing
+  - allow # of processors to be defined in .bochsrc.  This requires 
+    a CMOS hack and some rombios.c code to produce the SMP config
+    structure for a variable number of processors.
