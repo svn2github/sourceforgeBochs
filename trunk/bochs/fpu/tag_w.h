@@ -1,11 +1,7 @@
 /////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2004  MandrakeSoft S.A.
 //
-//    MandrakeSoft S.A.
-//    43, rue d'Aboukir
-//    75002 Paris - France
-//    http://www.linux-mandrake.com/
-//    http://www.mandrakesoft.com/
+//   Copyright (c) 2004 Stanislav Shwartsman
+//          Written by Stanislav Shwartsman <gate at fidonet.org.il>
 //
 //  This library is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU Lesser General Public
@@ -19,20 +15,21 @@
 //
 //  You should have received a copy of the GNU Lesser General Public
 //  License along with this library; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
-/////////////////////////////////////////////////////////////////////////
+//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+//
 
+#ifndef _TAG_W_H
+#define _TAG_W_H
 
-#define NEED_CPU_REG_SHORTCUTS 1
-#include "bochs.h"
-#define LOG_THIS BX_CPU_THIS_PTR
+/* Tag Word */
+#define FPU_Tag_Valid   0x00
+#define FPU_Tag_Zero    0x01
+#define FPU_Tag_Special 0x02
+#define FPU_Tag_Empty   0x03
 
-/* relevant only when FPU support is disabled */
+#ifdef __cplusplus
+extern "C" 
+#endif
+int FPU_tagof(FPU_REG *reg) BX_CPP_AttrRegparmN(1);
 
-#if BX_SUPPORT_FPU == 0
-void BX_CPU_C::FPU_ESC(bxInstruction_c *i)
-{
-  if (BX_CPU_THIS_PTR cr0.em || BX_CPU_THIS_PTR cr0.ts)
-    exception(BX_NM_EXCEPTION, 0, 0);
-}
 #endif

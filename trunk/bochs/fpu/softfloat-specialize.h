@@ -27,6 +27,9 @@ the work is derivative, and (2) the source code includes prominent notice with
 these four paragraphs for those parts of this code that are retained.
 =============================================================================*/
 
+#ifndef SOFTFLOAT_SPECIALIZE_H
+#define SOFTFLOAT_SPECIALIZE_H
+
 /*============================================================================
  * Adapted for Bochs (x86 achitecture simulator) by
  *            Stanislav Shwartsman (gate at fidonet.org.il)
@@ -165,7 +168,7 @@ BX_CPP_INLINE float32 propagateFloat32NaN(float32 a, float_status_t &status)
 | signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static float32 propagateFloat32NaN(float32 a, float32 b, float_status_t &status)
+BX_CPP_INLINE float32 propagateFloat32NaN(float32 a, float32 b, float_status_t &status)
 {
     int aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
 
@@ -316,7 +319,7 @@ BX_CPP_INLINE float64 propagateFloat64NaN(float64 a, float_status_t &status)
 | signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static float64 propagateFloat64NaN(float64 a, float64 b, float_status_t &status)
+BX_CPP_INLINE float64 propagateFloat64NaN(float64 a, float64 b, float_status_t &status)
 {
     int aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
 
@@ -404,7 +407,7 @@ BX_CPP_INLINE floatx80 packFloatx80(int zSign, Bit32s zExp, Bit64u zSig)
 {
     floatx80 z;
     z.fraction = zSig;
-    z.exp = (((Bit16u) zSign)<<15) + zExp;
+    z.exp = (zSign << 15) + zExp;
     return z;
 }
 
@@ -428,6 +431,16 @@ BX_CPP_INLINE int floatx80_is_signaling_nan(floatx80 a)
     Bit64s aLow = a.fraction & ~BX_CONST64(0x4000000000000000);
     return ((a.exp & 0x7FFF) == 0x7FFF) &&
             (Bit64s) (aLow<<1) && (a.fraction == aLow);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is an
+| unsupported; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+BX_CPP_INLINE int floatx80_is_unsupported(floatx80 a)
+{
+    return ((a.exp & 0x7FFF) && !(a.fraction & BX_CONST64(0x8000000000000000)));
 }
 
 /*----------------------------------------------------------------------------
@@ -481,7 +494,7 @@ BX_CPP_INLINE floatx80 propagateFloatx80NaN(floatx80 a, float_status_t &status)
 | `b' is a signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status_t &status)
+BX_CPP_INLINE floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status_t &status)
 {
     int aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
 
@@ -507,5 +520,13 @@ static floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status_t &sta
         return b;
     }
 }
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated extended double-precision NaN.
+*----------------------------------------------------------------------------*/
+static const floatx80 floatx80_default_nan = 
+    packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
+
+#endif	/* FLOATX80 */
 
 #endif

@@ -19,21 +19,39 @@ these four paragraphs for those parts of this code that are retained.
 =============================================================================*/
 
 /*============================================================================
- * Adapted for Bochs (x86 achitecture simulator) by
+ * Written for Bochs (x86 achitecture simulator) by
  *            Stanislav Shwartsman (gate at fidonet.org.il)
  * ==========================================================================*/ 
 
+#ifndef SOFTFLOATX80_EXTENSIONS_H
+#define SOFTFLOATX80_EXTENSIONS_H
+
 #include "softfloat.h"
+#include "softfloat-specialize.h"
 
 /*----------------------------------------------------------------------------
-| Functions and definitions to determine:  (1) whether tininess for underflow
-| is detected before or after rounding by default, (2) what (if anything)
-| happens when exceptions are raised, (3) how signaling NaNs are distinguished
-| from quiet NaNs, (4) the default generated quiet NaNs, and (5) how NaNs
-| are propagated from function inputs to output.  These details are target-
-| specific.
+| Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
-#include "softfloat-specialize.h"
+
+Bit16s floatx80_to_int16(floatx80, float_status_t &status);
+Bit16s floatx80_to_int16_round_to_zero(floatx80, float_status_t &status);
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE extended double-precision operations.
+*----------------------------------------------------------------------------*/
+
+floatx80 floatx80_extract(floatx80 &a, float_status_t &status);
+float_class_t floatx80_class(floatx80);
+floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status_t &status);
+floatx80 floatx80_remainder(floatx80 a, floatx80 b, Bit64u &q, float_status_t &status);
+floatx80 floatx80_ieee754_remainder(floatx80 a, floatx80 b, Bit64u &q, float_status_t &status);
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE extended double-precision compare.
+*----------------------------------------------------------------------------*/
+
+int floatx80_compare(floatx80, floatx80, float_status_t &status);
+int floatx80_compare_quiet(floatx80, floatx80, float_status_t &status);
 
 /*-----------------------------------------------------------------------------
 | Calculates the absolute value of the extended double-precision floating-point
@@ -59,46 +77,20 @@ BX_CPP_INLINE floatx80& floatx80_chs(floatx80 &reg)
     return reg;   
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point value `a' to the 16-bit two's complement integer format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic - which means in particular that the conversion
-| is rounded according to the current rounding mode. If `a' is a NaN or the 
-| conversion overflows, the integer indefinite value is returned.
+/*-----------------------------------------------------------------------------
+| Commonly used extended double-precision floating-point constants.
 *----------------------------------------------------------------------------*/
 
-BX_CPP_INLINE Bit16s floatx80_to_int16(floatx80 a, float_status_t &status)
-{
-   Bit32s v32 = floatx80_to_int32(a, status);
+extern const floatx80 Const_QNaN;
+extern const floatx80 Const_Z;
+extern const floatx80 Const_1;
+extern const floatx80 Const_L2T;
+extern const floatx80 Const_L2E;
+extern const floatx80 Const_PI;
+extern const floatx80 Const_PI2;
+extern const floatx80 Const_PI4;
+extern const floatx80 Const_LG2;
+extern const floatx80 Const_LN2;
+extern const floatx80 Const_INF;
 
-   if ((v32 > (Bit32s) BX_MAX_BIT16S) || (v32 < (Bit32s) BX_MIN_BIT16S))
-   {
-        float_raise(status, float_flag_invalid);
-        return int16_indefinite;
-   }
-
-   return (Bit16s) v32;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point value `a' to the 16-bit two's complement integer format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic, except that the conversion is always rounded
-| toward zero.  If `a' is a NaN or the conversion overflows, the integer 
-| indefinite value is returned.
-*----------------------------------------------------------------------------*/
-
-BX_CPP_INLINE Bit16s floatx80_to_int16_round_to_zero(floatx80 a, float_status_t &status)
-{
-   Bit32s v32 = floatx80_to_int32_round_to_zero(a, status);
-
-   if ((v32 > (Bit32s) BX_MAX_BIT16S) || (v32 < (Bit32s) BX_MIN_BIT16S))
-   {
-        float_raise(status, float_flag_invalid);
-        return int16_indefinite;
-   }
-
-   return (Bit16s) v32;
-}
+#endif
