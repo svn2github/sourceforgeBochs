@@ -1,6 +1,0 @@
-#!/bin/sh
-#
-# These options should work on Amiga/MorphOS
-#
-
-./configure --with-amigaos --enable-fpu --enable-cdrom --enable-split-hd ${CONFIGURE_ARGS}
